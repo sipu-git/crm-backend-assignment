@@ -19,7 +19,7 @@ import analyticsRouter from "./routes/analytics.routes.js";
 validateEnvironment();
 
 const app = express();
-const corsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+const corsOrigin = process.env.CORS_ORIGIN ?? "https://crm-backend-assignment-pvqh.onrender.com";
 const allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim()).filter(Boolean);
 const nodeEnv = process.env.NODE_ENV ?? "development";
 
