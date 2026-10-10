@@ -22,7 +22,7 @@ export async function listTimeline(
       ? await Customer.findById(id)
       : await Deal.findById(id);
   if (!entity) throw new AppError(404, "CRM record not found");
-  await ensureVisible(entity, actor, { managerCanViewAll: entityType === "lead" });
+  await ensureVisible(entity, actor, { managerCanViewAll: true });
   const filter: Record<string, unknown> = { entityType, entityId: id };
   if (query.search) {
     const pattern = escapedSearch(query.search);

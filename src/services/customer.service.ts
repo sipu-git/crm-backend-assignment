@@ -5,7 +5,7 @@ import Deal from "../models/deal.model.js";
 import Activity from "../models/activity.model.js";
 import { AppError } from "../middleware/errorHandler.js";
 import type { AuthenticatedUser } from "../types/express.js";
-import { assignedScope, ensureAssignee, ensureVisible } from "../utils/access.js";
+import { assignedScope, ensureAssignee, ensureVisible, readableRecordScope } from "../utils/access.js";
 import { paginate, type PaginationInput } from "../utils/pagination.js";
 import { combineFilters, escapedSearch } from "../utils/query.js";
 import { recordTimeline } from "../utils/timeline.js";
@@ -15,18 +15,22 @@ export interface CustomersQuery extends PaginationInput {
   assignedTo?: string;
 }
 
-async function findVisibleCustomer(id: string, actor: AuthenticatedUser): Promise<HydratedDocument<ICustomer>> {
+async function findVisibleCustomer(
+  id: string,
+  actor: AuthenticatedUser,
+  options: { managerCanViewAll?: boolean } = {},
+): Promise<HydratedDocument<ICustomer>> {
   const customer = await Customer.findById(id);
   if (!customer) throw new AppError(404, "Customer not found");
-  await ensureVisible(customer, actor);
+  await ensureVisible(customer, actor, options);
   return customer;
 }
 
 export async function listCustomers(query: CustomersQuery, actor: AuthenticatedUser) {
-  const clauses: Array<FilterQuery<ICustomer> | Record<string, unknown>> = [await assignedScope(actor)];
+  const clauses: Array<FilterQuery<ICustomer> | Record<string, unknown>> = [await readableRecordScope(actor)];
   if (query.status) clauses.push({ status: query.status });
   if (query.assignedTo) {
-    if (actor.role !== "admin") {
+    if (actor.role === "sales_executive") {
       const visible = await Customer.findOne({ assignedTo: new Types.ObjectId(query.assignedTo), ...await assignedScope(actor) }).select("_id");
       if (!visible) throw new AppError(404, "Resource not found");
     }
@@ -50,7 +54,7 @@ export async function listCustomers(query: CustomersQuery, actor: AuthenticatedU
 }
 
 export async function getCustomer(id: string, actor: AuthenticatedUser) {
-  const customer = await findVisibleCustomer(id, actor);
+  const customer = await findVisibleCustomer(id, actor, { managerCanViewAll: true });
   return Customer.populate(customer, [
     { path: "assignedTo", select: "name email role" },
     { path: "leadId", select: "name email status" },

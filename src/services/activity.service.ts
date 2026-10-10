@@ -6,7 +6,7 @@ import Deal from "../models/deal.model.js";
 import User from "../models/user.model.js";
 import { AppError } from "../middleware/errorHandler.js";
 import type { AuthenticatedUser } from "../types/express.js";
-import { assignedScope, ensureVisible, teamUserIds } from "../utils/access.js";
+import { ensureVisible, readableRecordScope, teamUserIds } from "../utils/access.js";
 import { paginate, type PaginationInput } from "../utils/pagination.js";
 import { combineFilters, escapedSearch } from "../utils/query.js";
 import { recordTimeline } from "../utils/timeline.js";
@@ -60,10 +60,14 @@ async function ensureActivityAssignee(actor: AuthenticatedUser, userId: string):
   return id;
 }
 
-async function findVisibleActivity(id: string, actor: AuthenticatedUser): Promise<HydratedDocument<IActivity>> {
+async function findVisibleActivity(
+  id: string,
+  actor: AuthenticatedUser,
+  options: { managerCanViewAll?: boolean } = {},
+): Promise<HydratedDocument<IActivity>> {
   const activity = await Activity.findById(id);
   if (!activity) throw new AppError(404, "Activity not found");
-  await ensureVisible(activity, actor);
+  await ensureVisible(activity, actor, options);
   return activity;
 }
 
@@ -76,12 +80,12 @@ function serializeActivity<T extends { toObject(): Record<string, unknown> }>(ac
 }
 
 export async function listActivities(query: ActivitiesQuery, actor: AuthenticatedUser) {
-  const clauses: Array<FilterQuery<IActivity> | Record<string, unknown>> = [await assignedScope(actor)];
+  const clauses: Array<FilterQuery<IActivity> | Record<string, unknown>> = [await readableRecordScope(actor)];
   if (query.type) clauses.push({ type: query.type });
   if (query.entityType) clauses.push({ entityType: query.entityType });
   if (query.entityId) clauses.push({ entityId: new Types.ObjectId(query.entityId) });
   if (query.assignedTo) {
-    if (actor.role !== "admin") {
+    if (actor.role === "sales_executive") {
       const allowed = (await teamUserIds(actor)).some((id) => id.toString() === query.assignedTo);
       if (!allowed) throw new AppError(404, "Resource not found");
     }
@@ -111,7 +115,7 @@ export async function listActivities(query: ActivitiesQuery, actor: Authenticate
 }
 
 export async function getActivity(id: string, actor: AuthenticatedUser) {
-  const activity = await findVisibleActivity(id, actor);
+  const activity = await findVisibleActivity(id, actor, { managerCanViewAll: true });
   const populated = await Activity.populate(activity, [
     { path: "assignedTo", select: "name email role" },
     { path: "createdBy", select: "name email role" },

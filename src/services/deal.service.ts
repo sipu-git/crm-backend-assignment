@@ -5,7 +5,7 @@ import Lead, { type ILead } from "../models/lead.model.js";
 import Activity from "../models/activity.model.js";
 import { AppError } from "../middleware/errorHandler.js";
 import type { AuthenticatedUser } from "../types/express.js";
-import { assignedScope, ensureAssignee, ensureVisible } from "../utils/access.js";
+import { assignedScope, ensureAssignee, ensureVisible, readableRecordScope } from "../utils/access.js";
 import { paginate, type PaginationInput } from "../utils/pagination.js";
 import { combineFilters, escapedSearch } from "../utils/query.js";
 import { recordTimeline } from "../utils/timeline.js";
@@ -20,10 +20,14 @@ export interface DealsQuery extends PaginationInput {
   status?: "open" | "closed" | "won" | "lost";
 }
 
-async function findVisibleDeal(id: string, actor: AuthenticatedUser): Promise<HydratedDocument<IDeal>> {
+async function findVisibleDeal(
+  id: string,
+  actor: AuthenticatedUser,
+  options: { managerCanViewAll?: boolean } = {},
+): Promise<HydratedDocument<IDeal>> {
   const deal = await Deal.findById(id);
   if (!deal) throw new AppError(404, "Deal not found");
-  await ensureVisible(deal, actor);
+  await ensureVisible(deal, actor, options);
   return deal;
 }
 
@@ -53,14 +57,14 @@ function validateExpectedCloseDate(stage: DealStage, date: Date): void {
 }
 
 export async function listDeals(query: DealsQuery, actor: AuthenticatedUser) {
-  const clauses: Array<FilterQuery<IDeal> | Record<string, unknown>> = [await assignedScope(actor)];
+  const clauses: Array<FilterQuery<IDeal> | Record<string, unknown>> = [await readableRecordScope(actor)];
   if (query.stage) clauses.push({ stage: query.stage });
   if (query.status === "open") clauses.push({ stage: { $nin: ["won", "lost"] } });
   if (query.status === "closed") clauses.push({ stage: { $in: ["won", "lost"] } });
   if (query.status === "won") clauses.push({ stage: "won" });
   if (query.status === "lost") clauses.push({ stage: "lost" });
   if (query.assignedTo) {
-    if (actor.role !== "admin") {
+    if (actor.role === "sales_executive") {
       const visible = await Deal.findOne({ assignedTo: new Types.ObjectId(query.assignedTo), ...await assignedScope(actor) }).select("_id");
       if (!visible) throw new AppError(404, "Resource not found");
     }
@@ -77,7 +81,7 @@ export async function listDeals(query: DealsQuery, actor: AuthenticatedUser) {
   }
   if (query.search) {
     const pattern = escapedSearch(query.search);
-    const relatedScope = await assignedScope(actor);
+    const relatedScope = await readableRecordScope(actor);
     const [matchingCustomers, matchingLeads] = await Promise.all([
       Customer.find(combineFilters<ICustomer>(relatedScope, {
         $or: [{ name: pattern }, { email: pattern }, { company: pattern }, { phone: pattern }],
@@ -102,7 +106,7 @@ export async function listDeals(query: DealsQuery, actor: AuthenticatedUser) {
 }
 
 export async function getDeal(id: string, actor: AuthenticatedUser) {
-  const deal = await findVisibleDeal(id, actor);
+  const deal = await findVisibleDeal(id, actor, { managerCanViewAll: true });
   return Deal.populate(deal, [
     { path: "assignedTo", select: "name email role" },
     { path: "customerId", select: "name email company" },

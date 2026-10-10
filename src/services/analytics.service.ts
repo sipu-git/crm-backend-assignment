@@ -6,13 +6,13 @@ import Lead from "../models/lead.model.js";
 import User from "../models/user.model.js";
 import { AppError } from "../middleware/errorHandler.js";
 import type { AuthenticatedUser } from "../types/express.js";
-import { assignedScope, teamUserIds } from "../utils/access.js";
+import { readableRecordScope, teamUserIds } from "../utils/access.js";
 import { escapedSearch } from "../utils/query.js";
 
 const openStages: DealStage[] = ["qualification", "discovery", "proposal", "negotiation"];
 
 export async function getSummary(actor: AuthenticatedUser) {
-  const scope = await assignedScope(actor);
+  const scope = await readableRecordScope(actor);
   const now = new Date();
   const [
     totalLeads, newLeads, qualifiedLeads, convertedLeads, totalCustomers, totalDeals,
@@ -52,7 +52,7 @@ export async function getSummary(actor: AuthenticatedUser) {
 }
 
 export async function getPipeline(actor: AuthenticatedUser) {
-  const scope = await assignedScope(actor);
+  const scope = await readableRecordScope(actor);
   const grouped = await Deal.aggregate([
     { $match: scope },
     { $group: { _id: "$stage", count: { $sum: 1 }, value: { $sum: "$amount" }, expectedRevenue: { $sum: "$expectedRevenue" } } },

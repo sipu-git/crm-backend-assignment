@@ -18,6 +18,11 @@ export async function assignedScope(actor: AuthenticatedUser): Promise<Record<st
   return { assignedTo: new Types.ObjectId(actor.id) };
 }
 
+export async function readableRecordScope(actor: AuthenticatedUser): Promise<Record<string, unknown>> {
+  if (actor.role === "admin" || actor.role === "sales_manager") return {};
+  return assignedScope(actor);
+}
+
 type AssigneeRecord = Pick<HydratedDocument<IUser>, "_id" | "role" | "isActive" | "managerId">;
 
 function validateAssignee(actor: AuthenticatedUser, assignee: AssigneeRecord | null) {
