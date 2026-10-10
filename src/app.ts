@@ -4,7 +4,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
-import { env } from "./config/env.js";
+import { validateEnvironment } from "./config/validateEnvironment.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import healthRouter from "./routes/health.routes.js";
 import authRouter from "./routes/auth.routes.js";
@@ -16,11 +16,15 @@ import activityRouter from "./routes/activity.routes.js";
 import timelineRouter from "./routes/timeline.routes.js";
 import analyticsRouter from "./routes/analytics.routes.js";
 
+validateEnvironment();
+
 const app = express();
-const allowedOrigins = env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);
+const corsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+const allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim()).filter(Boolean);
+const nodeEnv = process.env.NODE_ENV ?? "development";
 
 app.disable("x-powered-by");
-app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
+app.use(morgan(nodeEnv === "production" ? "combined" : "dev"));
 app.use(helmet());
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(rateLimit({

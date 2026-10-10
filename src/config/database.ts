@@ -1,12 +1,14 @@
 import mongoose from "mongoose";
-import { env } from "./env.js";
 
 mongoose.set("strictQuery", true);
 
 export async function connectDatabase(): Promise<void> {
-  await mongoose.connect(env.MONGODB_URI, {
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) throw new Error("MONGODB_URI must be set");
+
+  await mongoose.connect(mongoUri, {
     serverSelectionTimeoutMS: 10000,
-    autoIndex: env.NODE_ENV !== "production",
+    autoIndex: (process.env.NODE_ENV ?? "development") !== "production",
   });
   console.info("MongoDB connected");
 }

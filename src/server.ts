@@ -1,11 +1,13 @@
+import "dotenv/config";
 import { createServer } from "node:http";
 import app from "./app.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
-import { env } from "./config/env.js";
+
+const port = Number(process.env.PORT ?? 8000);
 
 const server = createServer(app);
-server.listen(env.PORT, () => {
-  console.info(`CRM Sales Management API listening on ${env.PORT}`);
+server.listen(port, () => {
+  console.info(`CRM Sales Management API listening on ${port}`);
   // Keep HTTP health checks available if MongoDB is not running locally.
   void connectDatabase().catch((error: unknown) => {
     console.error("MongoDB connection failed:", error);

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { connectDatabase, disconnectDatabase } from "../config/database.js";
 import User from "../models/user.model.js";
 import Lead from "../models/lead.model.js";

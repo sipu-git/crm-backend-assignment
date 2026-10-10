@@ -3,7 +3,6 @@ import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import User, { type IUser, type UserRole } from "../models/user.model.js";
 import type { HydratedDocument } from "mongoose";
-import { env } from "../config/env.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -45,13 +44,20 @@ async function publicUser(user: HydratedDocument<IUser>): Promise<SafeUser> {
 }
 
 function hashToken(token: string): string {
-  return createHmac("sha256", env.JWT_REFRESH_SECRET).update(token).digest("hex");
+  const refreshSecret = process.env.JWT_REFRESH_SECRET;
+  if (!refreshSecret) throw new Error("JWT_REFRESH_SECRET must be set");
+  return createHmac("sha256", refreshSecret).update(token).digest("hex");
 }
 
 function createAccessToken(userId: string): string {
-  return jwt.sign({}, env.JWT_SECRET, {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) throw new Error("JWT_SECRET must be set");
+  const accessTokenTtl = process.env.ACCESS_TOKEN_TTL ?? "2h";
+  if (!/^\d+[smhd]$/.test(accessTokenTtl)) throw new Error("ACCESS_TOKEN_TTL is invalid");
+
+  return jwt.sign({}, jwtSecret, {
     subject: userId,
-    expiresIn: env.ACCESS_TOKEN_TTL as SignOptions["expiresIn"],
+    expiresIn: accessTokenTtl as SignOptions["expiresIn"],
   });
 }
 

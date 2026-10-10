@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { env } from "../config/env.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { getValidated } from "../middleware/validate.js";
 import { sendSuccess } from "../utils/apiResponse.js";
@@ -12,7 +11,7 @@ const REFRESH_COOKIE = "crm_refresh";
 function cookieOptions() {
   return {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/api/auth",
     maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -24,7 +23,7 @@ function setRefreshCookie(res: Response, token: string) {
 }
 
 function clearRefreshCookie(res: Response) {
-  res.clearCookie(REFRESH_COOKIE, { httpOnly: true, secure: env.NODE_ENV === "production", sameSite: "lax", path: "/api/auth" });
+  res.clearCookie(REFRESH_COOKIE, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/auth" });
 }
 
 export const register = asyncHandler(async (_req: Request, res: Response) => {

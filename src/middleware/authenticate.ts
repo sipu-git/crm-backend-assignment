@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 import type { RequestHandler } from "express";
 import User from "../models/user.model.js";
-import { env } from "../config/env.js";
 import { AppError } from "./errorHandler.js";
 
 export const authenticate: RequestHandler = async (req, _res, next) => {
@@ -10,7 +9,10 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
     const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : undefined;
     if (!token) throw new AppError(401, "Authentication is required");
 
-    const payload = jwt.verify(token, env.JWT_SECRET) as jwt.JwtPayload;
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) throw new AppError(500, "Authentication is not configured");
+
+    const payload = jwt.verify(token, jwtSecret) as jwt.JwtPayload;
     if (typeof payload.sub !== "string") throw new AppError(401, "Authentication token is invalid");
 
     const user = await User.findById(payload.sub).select("_id name email phone role isActive managerId createdAt updatedAt");

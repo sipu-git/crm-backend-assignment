@@ -1,9 +1,9 @@
 node_modules/
 dist/
 coverage/
+# Local environment files; only the example template may be committed.
 .env
 .env.*
-src/config/env.ts
 
 !.env.example
 npm-debug.log*
